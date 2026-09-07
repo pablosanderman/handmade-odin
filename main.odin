@@ -6,33 +6,21 @@ import "core:time"
 
 import rl "vendor:raylib"
 
-
 main :: proc() {
-	start := time.tick_now()
+        rl.SetTraceLogLevel(.WARNING)
+        rl.SetConfigFlags({rl.ConfigFlags.WINDOW_RESIZABLE})
+        rl.InitWindow(800, 450, "Handmade Hero")
 
-	rl.SetConfigFlags({rl.ConfigFlags.WINDOW_RESIZABLE})
-	rl.InitWindow(800, 450, "Handmade Hero")
+        rl.InitAudioDevice()
 
-	elapsed := time.tick_since(start)
-        milliseconds := f64(elapsed) / f64(time.Millisecond)
-
-        fmt.printf("Elapsed: %.3f ms\n", milliseconds)
-
-	rl.InitAudioDevice()
-
-	rl.SetTargetFPS(144)
-
-	SAMPLE_RATE :: 48000
+        SAMPLE_RATE :: 48000
         BUFFER_FRAMES :: 2048
         CHANNELS :: 2
-
-
 
         rl.SetAudioStreamBufferSizeDefault(BUFFER_FRAMES)
         stream := rl.LoadAudioStream(SAMPLE_RATE, 16, CHANNELS)
 
-
-	samples: [BUFFER_FRAMES * CHANNELS]i16
+        samples: [BUFFER_FRAMES * CHANNELS]i16
         phase: f64 = 0
         frequency: f64 = 256
         amplitude: f64 = 3000
@@ -40,68 +28,91 @@ main :: proc() {
 
         rl.PlayAudioStream(stream)
 
-	offset_y: u8 = 0
-	offset_x: u8 = 0
+        offset_y: u8 = 0
+        offset_x: u8 = 0
 
-	for !rl.WindowShouldClose() {
-		for rl.IsAudioStreamProcessed(stream) {
-                        for frame in 0..<BUFFER_FRAMES {
-                                value := i16(math.sin(phase) * amplitude)
-                                samples[frame * 2] = value     // Left
-                                samples[frame * 2 + 1] = value // Right
+        pixels: []rl.Color
+        texture: rl.Texture2D
+        bitmap_width, bitmap_height: int
 
-                                phase += tau * frequency / SAMPLE_RATE
-                                if phase >= tau {
-                                        phase -= tau
-                                }
+        previous := time.tick_now()
+
+        for !rl.WindowShouldClose() {
+                // for rl.IsAudioStreamProcessed(stream) {
+                //         for frame in 0..<BUFFER_FRAMES {
+                //                 value := i16(math.sin(phase) * amplitude)
+                //                 samples[frame * 2] = value     // Left
+                //                 samples[frame * 2 + 1] = value // Right
+
+                //                 phase += tau * frequency / SAMPLE_RATE
+                //                 if phase >= tau {
+                //                         phase -= tau
+                //                 }
+                //         }
+
+                //         rl.UpdateAudioStream(stream, &samples[0], BUFFER_FRAMES)
+                // }
+
+                width := max(1, int(rl.GetScreenWidth()))
+                height := max(1, int(rl.GetScreenHeight()))
+
+                // Odin owns the pixels. Reallocate only when dimensions change.
+                if width != bitmap_width || height != bitmap_height {
+                        if texture.id != 0 {
+                                rl.UnloadTexture(texture)
                         }
+                        delete(pixels)
+                        pixels = make([]rl.Color, width * height)
+                        bitmap_width, bitmap_height = width, height
 
-                        rl.UpdateAudioStream(stream, &samples[0], BUFFER_FRAMES)
+                        // This image borrows the slice; do not call UnloadImage on it.
+                        bitmap := rl.Image{
+                                data = raw_data(pixels),
+                                width = i32(width),
+                                height = i32(height),
+                                mipmaps = 1,
+                                format = .UNCOMPRESSED_R8G8B8A8,
+                        }
+                        texture = rl.LoadTextureFromImage(bitmap)
                 }
 
+                if rl.IsKeyDown(.W) {
+                        offset_y -= 10
+                }
+                if rl.IsKeyDown(.A) {
+                        offset_x -= 10
+                }
+                if rl.IsKeyDown(.S) {
+                        offset_y += 10
+                }
+                if rl.IsKeyDown(.D) {
+                        offset_x += 10
+                }
 
-		width := rl.GetScreenWidth()
-		height := rl.GetScreenHeight()
+                for y in 0..<height {
+                        for x in 0..<width {
+                                pixels[y * width + x] = rl.Color{
+                                        0,                        // Red
+                                        u8(y % 256) + offset_y,   // Green
+                                        u8(x % 256) + offset_x,   // Blue
+                                        255,                      // Alpha
+                                }
+                        }
+                }
+                rl.UpdateTexture(texture, raw_data(pixels))
 
-		bitmap := rl.GenImageColor(width, height, rl.BLACK)
+                rl.BeginDrawing()
+                rl.ClearBackground(rl.RAYWHITE)
+                rl.DrawTexture(texture, 0, 0, rl.WHITE)
+                rl.DrawFPS(10, 10)
+                rl.EndDrawing()
 
-	        if rl.IsKeyDown(.W) {
-                	offset_y -= 10
-	        }
-	        if rl.IsKeyDown(.A) {
-	                offset_x -= 10
-	        }
-	        if rl.IsKeyDown(.S) {
-	                offset_y += 10
-	        }
-	        if rl.IsKeyDown(.D) {
-	                offset_x += 10
+		now := time.tick_now()
+                elapsed := time.tick_diff(previous, now)
+                
+	        milliseconds := f64(elapsed) / f64(time.Millisecond)
+	        fmt.printf("Elapsed: %.3f ms\n", milliseconds)
 
-	        }
-
-		pixels := cast([^]rl.Color)bitmap.data
-
-		for y in 0..<height {
-			for x in 0..<width {
-				pixels[y * width + x] = rl.Color{
-					0,           // Red
-					u8(y % 256) + offset_y, // Green
-					u8(x % 256) + offset_x, // Blue
-					255,         // Alpha
-				}
-			}
-		}
-
-		texture := rl.LoadTextureFromImage(bitmap)
-
-		rl.BeginDrawing()
-			rl.ClearBackground(rl.RAYWHITE)
-			rl.DrawTexture(texture, 0, 0, rl.WHITE)
-
-			rl.DrawFPS(10, 10)
-		rl.EndDrawing()
-
-		rl.UnloadTexture(texture)
-		rl.UnloadImage(bitmap)
-	}
+	        previous = now
+        }
 }
