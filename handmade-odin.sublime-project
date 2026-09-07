@@ -1,0 +1,19 @@
+{
+    "folders": [
+        { "path": ".", },
+    ],
+    "build_systems": [
+        {
+            "name": "Handmade Odin - Run",
+            "shell_cmd": "build.bat run",
+            "working_dir": "${project_path:${folder}}",
+            "file_regex": "^(.+?)\\(([0-9]+):([0-9]+)\\)\\s+(?:Error|Warning):",
+        },
+        {
+            "name": "Handmade Odin - Debug",
+            "shell_cmd": "build.bat debug",
+            "working_dir": "${project_path:${folder}}",
+            "file_regex": "^(.+?)\\(([0-9]+):([0-9]+)\\)\\s+(?:Error|Warning):",
+        }
+    ],
+}
