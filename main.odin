@@ -35,23 +35,29 @@ main :: proc() {
         texture: rl.Texture2D
         bitmap_width, bitmap_height: int
 
-        previous := time.tick_now()
+        previous_time := time.tick_now()
+        previous_counter := time.read_cycle_counter()
+        print_timing := true
 
         for !rl.WindowShouldClose() {
-                // for rl.IsAudioStreamProcessed(stream) {
-                //         for frame in 0..<BUFFER_FRAMES {
-                //                 value := i16(math.sin(phase) * amplitude)
-                //                 samples[frame * 2] = value     // Left
-                //                 samples[frame * 2 + 1] = value // Right
+                if rl.IsKeyPressed(.SPACE) {
+                        print_timing = !print_timing
+                }
 
-                //                 phase += tau * frequency / SAMPLE_RATE
-                //                 if phase >= tau {
-                //                         phase -= tau
-                //                 }
-                //         }
+                for rl.IsAudioStreamProcessed(stream) {
+                        for frame in 0..<BUFFER_FRAMES {
+                                value := i16(math.sin(phase) * amplitude)
+                                samples[frame * 2] = value     // Left
+                                samples[frame * 2 + 1] = value // Right
 
-                //         rl.UpdateAudioStream(stream, &samples[0], BUFFER_FRAMES)
-                // }
+                                phase += tau * frequency / SAMPLE_RATE
+                                if phase >= tau {
+                                        phase -= tau
+                                }
+                        }
+
+                        rl.UpdateAudioStream(stream, &samples[0], BUFFER_FRAMES)
+                }
 
                 width := max(1, int(rl.GetScreenWidth()))
                 height := max(1, int(rl.GetScreenHeight()))
@@ -107,12 +113,16 @@ main :: proc() {
                 rl.DrawFPS(10, 10)
                 rl.EndDrawing()
 
-		now := time.tick_now()
-                elapsed := time.tick_diff(previous, now)
+                now_time := time.tick_now()
+                now_counter := time.read_cycle_counter()
+                elapsed := time.tick_diff(previous_time, now_time)
                 
-	        milliseconds := f64(elapsed) / f64(time.Millisecond)
-	        fmt.printf("Elapsed: %.3f ms\n", milliseconds)
+                milliseconds := f64(elapsed) / f64(time.Millisecond)
+                if print_timing {
+                        fmt.printf("Elapsed: %.3f ms | TSC ticks: %d\n", milliseconds, now_counter - previous_counter)
+                }
 
-	        previous = now
+                previous_time = now_time
+                previous_counter = now_counter
         }
 }
